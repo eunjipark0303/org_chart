@@ -112,7 +112,7 @@ def get_employees(reference_date_str: str) -> list[dict]:
         if exit_str:
             try:
                 exit_date = datetime.strptime(exit_str, '%Y-%m-%d').date()
-                if exit_date <= ref_date:
+                if exit_date < ref_date:
                     continue
             except ValueError:
                 pass
