@@ -68,14 +68,14 @@ def _get_service():
         creds = Credentials.from_service_account_file(
             os.getenv('CREDENTIALS_FILE'), scopes=SCOPES
         )
-    return build('sheets', 'v4', credentials=creds)
+    return build('sheets', 'v4', credentials=creds, cache_discovery=False)
 
 
 def get_employees(reference_date_str: str) -> list[dict]:
     service = _get_service()
     result = service.spreadsheets().values().get(
         spreadsheetId=os.getenv('HR_SHEET_ID'),
-        range='인사데이터!A1:K2000'
+        range='인사데이터(평가, 조직도용)!A1:K2000'
     ).execute()
     rows = result.get('values', [])
     if not rows:
