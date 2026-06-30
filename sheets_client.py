@@ -98,7 +98,7 @@ def get_employees(reference_date_str: str) -> list[dict]:
         role       = row[6].strip() if len(row) > 6 else ''
         join_str   = row[7].strip() if len(row) > 7 else ''
         exit_str   = row[8].strip() if len(row) > 8 else ''
-        note       = row[9].strip() if len(row) > 9 else ''
+        note       = row[10].strip() if len(row) > 10 else ''
 
         if not name or not join_str:
             continue
