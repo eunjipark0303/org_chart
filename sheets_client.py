@@ -25,6 +25,7 @@ TEAM_COLORS = {
     'UA팀':            '#065f46',
     '마케팅파트':      '#059669',
     '크리에이티브파트': '#0d9488',
+    '게임운영팀':      '#0369a1',
     '디자인팀':        '#be185d',
     '재무팀':          '#b45309',
     '피플팀':          '#dc2626',
@@ -51,6 +52,7 @@ AIMED_DEPT_ORDER = [
     '이클립스', '이클립스팀',
     '퍼즐팀',
     'AI개발팀',
+    '게임운영팀',
     'UA팀', '마케팅파트', '크리에이티브파트',
     '디자인팀',
     '재무팀',
@@ -203,6 +205,16 @@ def _inject_ai_vacancy(nodes: list[dict], id_map: dict):
             n['parent'] = '__AI개발팀__'
     nodes.append(ai_v)
     id_map['__AI개발팀__'] = ai_v
+
+
+def _inject_game_ops_vacancy(nodes: list[dict], id_map: dict):
+    """게임운영팀 팀장 공석 가상 노드 및 팀원 라우팅"""
+    go_v = _make_virtual('__게임운영팀__', '임형철', '게임운영팀', '팀장 공석', '게임운영팀', '에임드')
+    for n in nodes:
+        if n['dept'] == '게임운영팀':
+            n['parent'] = '__게임운영팀__'
+    nodes.append(go_v)
+    id_map['__게임운영팀__'] = go_v
 
 
 def _inject_aimed_team_headers(nodes: list[dict], id_map: dict):
@@ -481,6 +493,7 @@ def build_flat_tree(employees: list[dict], filter_corp: str | None = None) -> li
     if filter_corp == '에임드':
         _inject_ua_structure(nodes, id_map)
         _inject_ai_vacancy(nodes, id_map)
+        _inject_game_ops_vacancy(nodes, id_map)
         _inject_aimed_team_headers(nodes, id_map)
         nodes = _sort_dfs(nodes, _AIMED_ORDER_MAP)
 
