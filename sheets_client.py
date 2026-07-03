@@ -75,14 +75,11 @@ def _get_service():
 
 def _get_transfer_overrides(service, ref_date) -> dict:
     """부서이동이력 시트에서 ref_date 기준으로 아직 발생하지 않은 이동의 이전 부서 반환"""
-    try:
-        result = service.spreadsheets().values().get(
-            spreadsheetId=os.getenv('HR_SHEET_ID'),
-            range='부서이동이력!A2:F1000'
-        ).execute()
-        rows = result.get('values', [])
-    except Exception:
-        return {}
+    result = service.spreadsheets().values().get(
+        spreadsheetId=os.getenv('HR_SHEET_ID'),
+        range='부서이동이력!A2:F1000'
+    ).execute()
+    rows = result.get('values', [])
 
     candidates = {}
     for row in rows:
