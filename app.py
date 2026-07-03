@@ -66,12 +66,14 @@ def debug_transfers():
         ref_date = dt.strptime(date, '%Y-%m-%d').date()
         service = _get_service()
         result = service.spreadsheets().values().get(
-            spreadsheetId=__import__('os').getenv('HR_SHEET_ID'),
+            spreadsheetId=os.getenv('HR_SHEET_ID'),
             range='부서이동이력!A1:F100'
         ).execute()
         raw_rows = result.get('values', [])
         overrides = _get_transfer_overrides(service, ref_date)
-        return jsonify({'raw_rows': raw_rows, 'overrides': overrides})
+        employees = get_employees(date)
+        jooha = next((e for e in employees if e['name'] == '장준하'), None)
+        return jsonify({'raw_rows': raw_rows, 'overrides': overrides, 'jooha': jooha})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
