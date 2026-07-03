@@ -1,7 +1,7 @@
 import os
 from flask import Flask, render_template, jsonify, request
 from datetime import datetime
-from sheets_client import get_employees, build_flat_tree
+from sheets_client import get_employees, build_flat_tree, _get_service, _get_transfer_overrides
 
 app = Flask(__name__)
 app.json.sort_keys = False
@@ -56,6 +56,24 @@ def orgchart():
         'corp_counts': corp_counts,
         'nodes':       nodes,
     })
+
+
+@app.route('/api/debug/transfers')
+def debug_transfers():
+    date = request.args.get('date', datetime.today().strftime('%Y-%m-%d'))
+    try:
+        from datetime import datetime as dt
+        ref_date = dt.strptime(date, '%Y-%m-%d').date()
+        service = _get_service()
+        result = service.spreadsheets().values().get(
+            spreadsheetId=__import__('os').getenv('HR_SHEET_ID'),
+            range='부서이동이력!A1:F100'
+        ).execute()
+        raw_rows = result.get('values', [])
+        overrides = _get_transfer_overrides(service, ref_date)
+        return jsonify({'raw_rows': raw_rows, 'overrides': overrides})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 
 if __name__ == '__main__':
