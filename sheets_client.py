@@ -73,6 +73,37 @@ def _get_service():
     return build('sheets', 'v4', credentials=creds, cache_discovery=False)
 
 
+def _get_transfer_overrides(service, ref_date) -> dict:
+    """부서이동이력 시트에서 ref_date 기준으로 아직 발생하지 않은 이동의 이전 부서 반환"""
+    try:
+        result = service.spreadsheets().values().get(
+            spreadsheetId=os.getenv('HR_SHEET_ID'),
+            range='부서이동이력!A2:F1000'
+        ).execute()
+        rows = result.get('values', [])
+    except Exception:
+        return {}
+
+    candidates = {}
+    for row in rows:
+        if len(row) < 2 or not row[0]:
+            continue
+        name = row[0].strip()
+        try:
+            change_date = datetime.strptime(row[1].strip(), '%Y-%m-%d').date()
+        except ValueError:
+            continue
+        if change_date <= ref_date:
+            continue
+        from_dept = row[2].strip() if len(row) > 2 else ''
+        from_sub  = row[3].strip() if len(row) > 3 else ''
+        # 여러 건이면 가장 가까운 미래 이동 기준으로 보정
+        if name not in candidates or change_date < candidates[name][0]:
+            candidates[name] = (change_date, from_dept, from_sub)
+
+    return {name: {'dept': v[1], 'sub_dept': v[2]} for name, v in candidates.items()}
+
+
 def get_employees(reference_date_str: str) -> list[dict]:
     service = _get_service()
     result = service.spreadsheets().values().get(
@@ -84,6 +115,7 @@ def get_employees(reference_date_str: str) -> list[dict]:
         return []
 
     ref_date = datetime.strptime(reference_date_str, '%Y-%m-%d').date()
+    overrides = _get_transfer_overrides(service, ref_date)
 
     employees = []
     for row in rows[1:]:
@@ -124,6 +156,11 @@ def get_employees(reference_date_str: str) -> list[dict]:
             supervisor = supervisor.split(',')[0].strip()
 
         corp = CORP_DISPLAY.get(corp_raw, corp_raw)
+
+        # 부서이동이력 기준 부서/파트 보정
+        if name in overrides:
+            dept     = overrides[name]['dept']
+            sub_dept = overrides[name]['sub_dept']
 
         employees.append({
             'name':       name,
