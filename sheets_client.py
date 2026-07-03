@@ -227,6 +227,10 @@ def _inject_ua_structure(nodes: list[dict], id_map: dict):
             n['parent'] = '__마케팅파트__'
         elif n['id'] == '김소현':
             n['parent'] = '__크리에이티브파트__'
+        elif n['dept'] == 'UA팀' and n['sub_dept'] == '마케팅파트' and n['parent'] == '임형철':
+            n['parent'] = '__마케팅파트__'
+        elif n['dept'] == 'UA팀' and n['sub_dept'] == '크리에이티브파트' and n['parent'] == '임형철':
+            n['parent'] = '__크리에이티브파트__'
 
     nodes.extend([ua_v, mkt_v, cre_v])
     id_map.update({'__UA팀__': ua_v, '__마케팅파트__': mkt_v, '__크리에이티브파트__': cre_v})
