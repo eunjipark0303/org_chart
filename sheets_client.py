@@ -86,7 +86,7 @@ def _get_transfer_overrides(service, ref_date) -> dict:
         if len(row) < 2 or not row[0]:
             continue
         name = row[0].strip()
-        raw = row[1].strip().replace('.', '-').replace('/', '-')
+        raw = row[1].strip().replace('.', '-').replace('/', '-').replace(' ', '')
         try:
             change_date = datetime.strptime(raw, '%Y-%m-%d').date()
         except ValueError:
