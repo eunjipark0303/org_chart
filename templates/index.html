@@ -287,8 +287,17 @@ function buildTree(nodes) {
   return roots;
 }
 
+/* ── Count real (non-virtual, non-겸직) members in subtree ── */
+function countRealMembers(node) {
+  let count = node.is_virtual ? 0 : 1;
+  for (const child of node.children) {
+    count += countRealMembers(child);
+  }
+  return count;
+}
+
 /* ── Make a card element ── */
-function makeCard(node, depth) {
+function makeCard(node, depth, memberCount = 0) {
   const card = document.createElement('div');
   const color = node.color || '#94a3b8';
   card.className = `org-card ${depthClass(depth)} ${node.is_virtual ? 'virtual' : ''}`;
@@ -306,7 +315,7 @@ function makeCard(node, depth) {
   info.className = 'card-info';
   const nameEl = document.createElement('div');
   nameEl.className = 'card-name';
-  nameEl.textContent = node.name;
+  nameEl.textContent = node.name + (node.is_virtual && memberCount > 0 ? ` (${memberCount})` : '');
   info.appendChild(nameEl);
   if (node.role) {
     const roleEl = document.createElement('div');
@@ -346,7 +355,8 @@ function renderNode(node, depth) {
   wrap.style.alignItems = useHorizontal ? 'center' : 'flex-start';
 
   /* Card */
-  const card = makeCard(node, depth);
+  const memberCount = node.is_virtual ? countRealMembers(node) : 0;
+  const card = makeCard(node, depth, memberCount);
 
   /* Collapse toggle (add icon to card if it has children) */
   if (hasChildren) {
