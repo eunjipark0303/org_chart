@@ -320,10 +320,11 @@ def _ensure_im_hyeongcheol(nodes: list[dict], id_map: dict, all_employees: list[
 
 
 def _inject_gb_structure(nodes: list[dict], id_map: dict):
-    """게임베리스튜디오 블랙/골든/레드 팀 가상 헤더 노드 주입"""
-    black_v  = _make_virtual('__블랙__', '임형철', '블랙팀', '', '블랙', '게임베리스튜디오')
-    golden_v = _make_virtual('__골든__', '임형철', '골든팀', '', '골든', '게임베리스튜디오')
-    red_v    = _make_virtual('__레드__', '임형철', '레드팀', '', '레드', '게임베리스튜디오')
+    """게임베리스튜디오 블랙/골든/레드/피플팀 가상 헤더 노드 주입"""
+    black_v  = _make_virtual('__블랙__',      '임형철', '블랙팀', '', '블랙',   '게임베리스튜디오')
+    golden_v = _make_virtual('__골든__',      '임형철', '골든팀', '', '골든',   '게임베리스튜디오')
+    red_v    = _make_virtual('__레드__',      '임형철', '레드팀', '', '레드',   '게임베리스튜디오')
+    ppl_v    = _make_virtual('__GB피플팀__',  '임형철', '피플팀', '', '피플팀', '게임베리스튜디오')
 
     for n in nodes:
         if n['id'] == '임형철':
@@ -334,6 +335,8 @@ def _inject_gb_structure(nodes: list[dict], id_map: dict):
             n['parent'] = '__골든__'
         elif n['dept'] == '레드' and n['parent'] == '임형철':
             n['parent'] = '__레드__'
+        elif n['dept'] == '피플팀':
+            n['parent'] = '__GB피플팀__'
 
     # 블랙팀 flatten: 이민희 직속 팀원을 __블랙__ 하위로 끌어올림
     for n in nodes:
@@ -348,8 +351,8 @@ def _inject_gb_structure(nodes: list[dict], id_map: dict):
         for pos, (_, node) in zip([i for i, _ in black_pairs], sorted_pairs):
             nodes[pos] = node
 
-    nodes.extend([black_v, golden_v, red_v])
-    id_map.update({'__블랙__': black_v, '__골든__': golden_v, '__레드__': red_v})
+    nodes.extend([black_v, golden_v, red_v, ppl_v])
+    id_map.update({'__블랙__': black_v, '__골든__': golden_v, '__레드__': red_v, '__GB피플팀__': ppl_v})
 
 
 # ══════════════════════════════════════════════════════════════════
