@@ -335,7 +335,7 @@ def _inject_gb_structure(nodes: list[dict], id_map: dict):
             n['parent'] = '__골든__'
         elif n['dept'] == '레드' and n['parent'] == '임형철':
             n['parent'] = '__레드__'
-        elif n['dept'] == '피플팀':
+        elif n['dept'] == '피플팀' or n['id'] == '오단':
             n['parent'] = '__GB피플팀__'
 
     # 블랙팀 flatten: 이민희 직속 팀원을 __블랙__ 하위로 끌어올림
