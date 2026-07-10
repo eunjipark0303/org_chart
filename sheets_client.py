@@ -102,7 +102,17 @@ def _get_transfer_overrides(service, ref_date) -> dict:
     return {name: {'dept': v[1], 'sub_dept': v[2]} for name, v in candidates.items()}
 
 
-def get_employees(reference_date_str: str) -> list[dict]:
+def _parse_date_str(raw: str):
+    """날짜 문자열을 date 객체로 변환. '2026. 7. 1', '2026/07/01', '2026-07-01' 모두 처리."""
+    s = raw.strip().replace('.', '-').replace('/', '-').replace(' ', '')
+    # '2026-7-1' 형태를 '2026-07-01'로 정규화
+    parts = s.split('-')
+    if len(parts) == 3:
+        s = f'{parts[0]}-{int(parts[1]):02d}-{int(parts[2]):02d}'
+    return datetime.strptime(s, '%Y-%m-%d').date()
+
+
+def get_employees(reference_date_str: str, debug: bool = False) -> list[dict]:
     service = _get_service()
     result = service.spreadsheets().values().get(
         spreadsheetId=os.getenv('HR_SHEET_ID'),
@@ -116,11 +126,17 @@ def get_employees(reference_date_str: str) -> list[dict]:
     overrides = _get_transfer_overrides(service, ref_date)
 
     employees = []
-    for row in rows[1:]:
-        if len(row) < 8:
+    skipped = []
+    for i, row in enumerate(rows[1:], start=2):
+        name = row[0].strip() if row else ''
+        if not name:
             continue
 
-        name       = row[0].strip() if row[0] else ''
+        if len(row) < 8:
+            if debug:
+                skipped.append({'row': i, 'name': name, 'reason': f'행 길이 부족 ({len(row)}열)'})
+            continue
+
         corp_raw   = row[1].strip() if len(row) > 1 else ''
         dept       = row[2].strip() if len(row) > 2 else ''
         sub_dept   = row[3].strip() if len(row) > 3 else ''
@@ -130,23 +146,31 @@ def get_employees(reference_date_str: str) -> list[dict]:
         exit_str   = row[8].strip() if len(row) > 8 else ''
         note       = row[10].strip() if len(row) > 10 else ''
 
-        if not name or not join_str:
+        if not join_str:
+            if debug:
+                skipped.append({'row': i, 'name': name, 'reason': '입사일 없음'})
             continue
 
         try:
-            join_date = datetime.strptime(join_str, '%Y-%m-%d').date()
-        except ValueError:
+            join_date = _parse_date_str(join_str)
+        except (ValueError, IndexError):
+            if debug:
+                skipped.append({'row': i, 'name': name, 'reason': f'입사일 파싱 실패: {join_str!r}'})
             continue
 
         if join_date > ref_date:
+            if debug:
+                skipped.append({'row': i, 'name': name, 'reason': f'입사일 미래: {join_str}'})
             continue
 
         if exit_str:
             try:
-                exit_date = datetime.strptime(exit_str, '%Y-%m-%d').date()
+                exit_date = _parse_date_str(exit_str)
                 if exit_date < ref_date:
+                    if debug:
+                        skipped.append({'row': i, 'name': name, 'reason': f'퇴사일 경과: {exit_str}'})
                     continue
-            except ValueError:
+            except (ValueError, IndexError):
                 pass
 
         # 쉼표 구분 상위직책자 → 첫 번째만
@@ -172,6 +196,8 @@ def get_employees(reference_date_str: str) -> list[dict]:
             'note':       note,
         })
 
+    if debug:
+        return employees, skipped
     return employees
 
 

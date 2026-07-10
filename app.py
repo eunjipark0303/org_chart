@@ -59,6 +59,17 @@ def orgchart():
 
 
 
+@app.route('/api/debug/skipped')
+def debug_skipped():
+    """조직도에서 제외된 인원과 사유를 반환 (진단용)"""
+    date = request.args.get('date', datetime.today().strftime('%Y-%m-%d'))
+    try:
+        employees, skipped = get_employees(date, debug=True)
+        return jsonify({'date': date, 'included_count': len(employees), 'skipped': skipped})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5050))
     app.run(host='0.0.0.0', port=port)
