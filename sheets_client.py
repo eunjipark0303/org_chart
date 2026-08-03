@@ -403,7 +403,7 @@ def _inject_martini_structure(nodes: list[dict], id_map: dict):
     sale_lead = _make_virtual('__세일즈팀장__', '__세일즈팀__', '이선규', '팀장 (겸직)', '세일즈팀', '마티니')
 
     # CRM 파트 (CRM팀장 하위) — CRM1은 공석
-    crm1 = _make_virtual('__CRM1__', '__CRM팀장__', 'CRM1', '공석', 'CRM팀', '마티니')
+    crm1 = _make_virtual('__CRM1__', '__CRM팀장__', 'CRM1', '', 'CRM팀', '마티니')
     crm2 = _make_virtual('__CRM2__', '__CRM팀장__', 'CRM2', '',     'CRM팀', '마티니')
     crm3 = _make_virtual('__CRM3__', '__CRM팀장__', 'CRM3', '',     'CRM팀', '마티니')
 
@@ -424,8 +424,10 @@ def _inject_martini_structure(nodes: list[dict], id_map: dict):
         elif dept == '세일즈팀':       # 세일즈 팀원 → 이선규 겸직 리더 하위
             n['parent'] = '__세일즈팀장__'
         elif dept == 'CRM팀' and n['parent'] == '이건희':
-            # sub_dept 값으로 CRM 파트 배정 (CRM1은 공석)
-            if sub == 'CRM2':
+            # sub_dept 값으로 CRM 파트 배정
+            if sub == 'CRM1':
+                n['parent'] = '__CRM1__'
+            elif sub == 'CRM2':
                 n['parent'] = '__CRM2__'
             elif sub == 'CRM3':
                 n['parent'] = '__CRM3__'
