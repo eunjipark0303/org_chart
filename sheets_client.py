@@ -298,7 +298,8 @@ def _inject_eclipse_parts(nodes: list[dict], id_map: dict):
     art_v = _make_virtual('__이클립스ART파트__',  '__이클립스__', 'ART파트',  '리더: 안경빈',        '이클립스팀', '에임드')
 
     for n in nodes:
-        if n['dept'] not in ('이클립스', '이클립스팀') or n['parent'] != '__이클립스__':
+        # 가상 노드는 건드리지 않음
+        if n['dept'] not in ('이클립스', '이클립스팀') or n.get('is_virtual'):
             continue
         if n['id'] == '강건우':
             n['parent'] = '__이클립스개발파트__'
