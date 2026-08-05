@@ -36,7 +36,7 @@ def orgchart():
     if corp == '전체':
         sections = {}
         for c in CORPS:
-            nodes = build_flat_tree(employees, c)
+            nodes = build_flat_tree(employees, c, ref_date_str=date)
             sections[c] = {
                 'nodes': nodes,
                 'count': sum(1 for n in nodes if not n.get('is_virtual')),
@@ -48,7 +48,7 @@ def orgchart():
             'sections':    sections,
         })
 
-    nodes = build_flat_tree(employees, corp)
+    nodes = build_flat_tree(employees, corp, ref_date_str=date)
     return jsonify({
         'corp':        corp,
         'total':       total,

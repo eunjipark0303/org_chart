@@ -20,6 +20,10 @@ TEAM_COLORS = {
     # 에임드 팀
     '이클립스':        '#4338ca',
     '이클립스팀':      '#4338ca',
+    '개발파트':        '#4338ca',
+    'ART파트':         '#7c3aed',
+    '이클립스_개발':   '#3730a3',
+    '이클립스_ART':    '#5b21b6',
     '퍼즐팀':          '#7c3aed',
     'AI개발팀':        '#0891b2',
     'UA팀':            '#065f46',
@@ -49,7 +53,7 @@ TEAM_COLORS = {
 # ── 에임드 팀 정렬 순서 ───────────────────────────────────────────
 AIMED_DEPT_ORDER = [
     '에임드',
-    '이클립스', '이클립스팀',
+    '이클립스', '이클립스팀', '이클립스_개발', '이클립스_ART',
     '퍼즐팀',
     'AI개발팀',
     '게임운영팀',
@@ -59,6 +63,7 @@ AIMED_DEPT_ORDER = [
     '피플팀',
 ]
 _AIMED_ORDER_MAP = {d: i for i, d in enumerate(AIMED_DEPT_ORDER)}
+_ECLIPSE_PARTS_SINCE = datetime.strptime('2026-08-05', '%Y-%m-%d').date()
 
 
 def _get_service():
@@ -282,6 +287,33 @@ def _inject_game_ops_vacancy(nodes: list[dict], id_map: dict):
     id_map['__게임운영팀__'] = go_v
 
 
+def _inject_eclipse_parts(nodes: list[dict], id_map: dict):
+    """이클립스팀을 개발파트(리더 강건우 겸직)·ART파트(리더 안경빈)로 분리 (2026-08-05~)
+    D열(sub_dept) == 'art'(대소문자 무관) → ART파트, 그 외 → 개발파트
+    """
+    if '__이클립스__' in id_map:
+        id_map['__이클립스__']['role'] = '총괄PD: 강건우'
+
+    dev_v = _make_virtual('__이클립스개발파트__', '__이클립스__', '개발파트', '리더: 강건우 (겸직)', '이클립스팀', '에임드')
+    art_v = _make_virtual('__이클립스ART파트__',  '__이클립스__', 'ART파트',  '리더: 안경빈',        '이클립스팀', '에임드')
+
+    for n in nodes:
+        if n['dept'] not in ('이클립스', '이클립스팀') or n['parent'] != '__이클립스__':
+            continue
+        if n['id'] == '강건우':
+            n['parent'] = '__이클립스개발파트__'
+        elif n['id'] == '안경빈':
+            n['parent'] = '__이클립스ART파트__'
+        elif n.get('sub_dept', '').strip().lower() == 'art':
+            n['parent'] = '__이클립스ART파트__'
+        else:  # 기획·개발·QA·빈값 모두 개발파트
+            n['parent'] = '__이클립스개발파트__'
+
+    nodes.extend([dev_v, art_v])
+    id_map['__이클립스개발파트__'] = dev_v
+    id_map['__이클립스ART파트__'] = art_v
+
+
 def _inject_aimed_team_headers(nodes: list[dict], id_map: dict):
     """에임드 각 팀의 가상 헤더 노드 주입 (팀명 → 리더 → 팀원 구조)"""
     # 팀 dept → 가상 노드 ID 매핑
@@ -313,6 +345,33 @@ def _inject_aimed_team_headers(nodes: list[dict], id_map: dict):
     nodes.extend(v_nodes)
     for v in v_nodes:
         id_map[v['id']] = v
+
+
+def _inject_eclipse_parts(nodes: list[dict], id_map: dict):
+    """이클립스 개발파트/ART파트 분리 (2026-08-05~)
+    D열(sub_dept): 'art' → ART파트, 그 외(기획/개발/QA/빈값) → 개발파트
+    """
+    if '__이클립스__' in id_map:
+        id_map['__이클립스__']['role'] = '총괄PD: 강건우'
+
+    dev_v = _make_virtual('__이클립스개발파트__', '__이클립스__', '개발파트', '리더: 강건우 (겸직)', '이클립스팀', '에임드')
+    art_v = _make_virtual('__이클립스ART파트__',  '__이클립스__', 'ART파트',  '리더: 안경빈',        '이클립스팀', '에임드')
+
+    for n in nodes:
+        if n['dept'] not in ('이클립스', '이클립스팀') or n['parent'] != '__이클립스__':
+            continue
+        if n['id'] == '강건우':
+            n['parent'] = '__이클립스개발파트__'
+        elif n['id'] == '안경빈':
+            n['parent'] = '__이클립스ART파트__'
+        elif n.get('sub_dept', '').strip().lower() == 'art':
+            n['parent'] = '__이클립스ART파트__'
+        else:  # 기획, 개발, QA, 빈값 모두 개발파트
+            n['parent'] = '__이클립스개발파트__'
+
+    nodes.extend([dev_v, art_v])
+    id_map['__이클립스개발파트__'] = dev_v
+    id_map['__이클립스ART파트__'] = art_v
 
 
 # ══════════════════════════════════════════════════════════════════
@@ -493,7 +552,8 @@ def _eclipse_role_key(role: str) -> int:
     return 4
 
 
-def _sort_dfs(nodes: list[dict], order_map: dict) -> list[dict]:
+def _sort_dfs(nodes: list[dict], order_map: dict,
+              eclipse_leaders: dict | None = None) -> list[dict]:
     """DFS 순회 결과를 에임드 팀 순서에 맞게 정렬해 반환"""
     id_to_node = {n['id']: n for n in nodes}
     children: dict[str, list[dict]] = {n['id']: [] for n in nodes}
@@ -508,10 +568,11 @@ def _sort_dfs(nodes: list[dict], order_map: dict) -> list[dict]:
 
     def sort_key(n):
         dept_key = order_map.get(n['dept'], 999)
-        # 이클립스팀 멤버는 role 기준 2차 정렬 (기획→개발→QA→Art)
+        # 이클립스팀: 리더 우선(0) → role 순서
         if n['dept'] in ('이클립스', '이클립스팀'):
-            return (dept_key, _eclipse_role_key(n.get('role', '')))
-        return (dept_key, 0)
+            leader_prio = (eclipse_leaders or {}).get(n['id'], 1)
+            return (dept_key, leader_prio, _eclipse_role_key(n.get('role', '')))
+        return (dept_key, 0, 0)
 
     for lst in children.values():
         lst.sort(key=sort_key)
@@ -532,7 +593,8 @@ def _sort_dfs(nodes: list[dict], order_map: dict) -> list[dict]:
 #  메인 트리 빌더
 # ══════════════════════════════════════════════════════════════════
 
-def build_flat_tree(employees: list[dict], filter_corp: str | None = None) -> list[dict]:
+def build_flat_tree(employees: list[dict], filter_corp: str | None = None,
+                    ref_date_str: str | None = None) -> list[dict]:
     if filter_corp:
         visible = [e for e in employees if e['corp'] == filter_corp]
     else:
@@ -565,7 +627,18 @@ def build_flat_tree(employees: list[dict], filter_corp: str | None = None) -> li
         _inject_ai_vacancy(nodes, id_map)
         _inject_game_ops_vacancy(nodes, id_map)
         _inject_aimed_team_headers(nodes, id_map)
-        nodes = _sort_dfs(nodes, _AIMED_ORDER_MAP)
+
+        eclipse_leaders = None
+        if ref_date_str:
+            try:
+                ref_d = datetime.strptime(ref_date_str, '%Y-%m-%d').date()
+                if ref_d >= _ECLIPSE_PARTS_SINCE:
+                    _inject_eclipse_parts(nodes, id_map)
+                    eclipse_leaders = {'강건우': 0, '안경빈': 0}
+            except ValueError:
+                pass
+
+        nodes = _sort_dfs(nodes, _AIMED_ORDER_MAP, eclipse_leaders=eclipse_leaders)
 
     # 마티니: COO 구조 + 4개 팀 + CRM/BA 파트
     if filter_corp == '마티니':
