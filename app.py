@@ -61,16 +61,17 @@ def orgchart():
 
 @app.route('/api/debug/eclipse')
 def debug_eclipse():
-    """이클립스 팀원의 sub_dept(D열) 값 확인용"""
+    """이클립스 트리 노드의 parent 값 확인용 (build_flat_tree 결과)"""
     date = request.args.get('date', datetime.today().strftime('%Y-%m-%d'))
     try:
         employees = get_employees(date)
-        eclipse = [
-            {'name': e['name'], 'sub_dept': e['sub_dept'], 'role': e['role']}
-            for e in employees
-            if e['dept'] in ('이클립스', '이클립스팀')
+        nodes = build_flat_tree(employees, '에임드', ref_date_str=date)
+        eclipse_nodes = [
+            {'id': n['id'], 'parent': n['parent'], 'sub_dept': n.get('sub_dept',''), 'is_virtual': n.get('is_virtual', False)}
+            for n in nodes
+            if n['dept'] in ('이클립스', '이클립스팀')
         ]
-        return jsonify({'date': date, 'count': len(eclipse), 'members': eclipse})
+        return jsonify({'date': date, 'version': 'v3', 'count': len(eclipse_nodes), 'nodes': eclipse_nodes})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
