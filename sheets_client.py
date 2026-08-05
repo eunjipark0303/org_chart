@@ -348,33 +348,6 @@ def _inject_aimed_team_headers(nodes: list[dict], id_map: dict):
         id_map[v['id']] = v
 
 
-def _inject_eclipse_parts(nodes: list[dict], id_map: dict):
-    """이클립스 개발파트/ART파트 분리 (2026-08-05~)
-    D열(sub_dept): 'art' → ART파트, 그 외(기획/개발/QA/빈값) → 개발파트
-    """
-    if '__이클립스__' in id_map:
-        id_map['__이클립스__']['role'] = '총괄PD: 강건우'
-
-    dev_v = _make_virtual('__이클립스개발파트__', '__이클립스__', '개발파트', '리더: 강건우 (겸직)', '이클립스팀', '에임드')
-    art_v = _make_virtual('__이클립스ART파트__',  '__이클립스__', 'ART파트',  '리더: 안경빈',        '이클립스팀', '에임드')
-
-    for n in nodes:
-        if n['dept'] not in ('이클립스', '이클립스팀') or n['parent'] != '__이클립스__':
-            continue
-        if n['id'] == '강건우':
-            n['parent'] = '__이클립스개발파트__'
-        elif n['id'] == '안경빈':
-            n['parent'] = '__이클립스ART파트__'
-        elif n.get('sub_dept', '').strip().lower() == 'art':
-            n['parent'] = '__이클립스ART파트__'
-        else:  # 기획, 개발, QA, 빈값 모두 개발파트
-            n['parent'] = '__이클립스개발파트__'
-
-    nodes.extend([dev_v, art_v])
-    id_map['__이클립스개발파트__'] = dev_v
-    id_map['__이클립스ART파트__'] = art_v
-
-
 # ══════════════════════════════════════════════════════════════════
 #  게임베리스튜디오 전용 가상 노드 주입
 # ══════════════════════════════════════════════════════════════════
