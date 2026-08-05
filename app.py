@@ -59,6 +59,22 @@ def orgchart():
 
 
 
+@app.route('/api/debug/eclipse')
+def debug_eclipse():
+    """이클립스 팀원의 sub_dept(D열) 값 확인용"""
+    date = request.args.get('date', datetime.today().strftime('%Y-%m-%d'))
+    try:
+        employees = get_employees(date)
+        eclipse = [
+            {'name': e['name'], 'sub_dept': e['sub_dept'], 'role': e['role']}
+            for e in employees
+            if e['dept'] in ('이클립스', '이클립스팀')
+        ]
+        return jsonify({'date': date, 'count': len(eclipse), 'members': eclipse})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
 @app.route('/api/debug/skipped')
 def debug_skipped():
     """조직도에서 제외된 인원과 사유를 반환 (진단용)"""
