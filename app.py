@@ -31,7 +31,8 @@ def orgchart():
         c = e['corp'] or '기타'
         corp_counts[c] = corp_counts.get(c, 0) + 1
 
-    total = len(employees)
+    # 임형철처럼 여러 법인에 걸쳐 등재된 인물은 1명으로 집계
+    total = len({e['name'] for e in employees})
 
     if corp == '전체':
         sections = {}
