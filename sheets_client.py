@@ -63,7 +63,8 @@ AIMED_DEPT_ORDER = [
     '피플팀',
 ]
 _AIMED_ORDER_MAP = {d: i for i, d in enumerate(AIMED_DEPT_ORDER)}
-_ECLIPSE_PARTS_SINCE = datetime.strptime('2026-08-05', '%Y-%m-%d').date()
+_ECLIPSE_PARTS_SINCE     = datetime.strptime('2026-08-05', '%Y-%m-%d').date()
+_MARTINI_COO_CHANGE_SINCE = datetime.strptime('2026-09-01', '%Y-%m-%d').date()
 
 
 def _get_service():
@@ -418,27 +419,43 @@ def _inject_gb_structure(nodes: list[dict], id_map: dict):
 #  마티니 전용 가상 노드 주입
 # ══════════════════════════════════════════════════════════════════
 
-def _inject_martini_structure(nodes: list[dict], id_map: dict):
+def _inject_martini_structure(nodes: list[dict], id_map: dict, ref_date=None):
     """
-    이선규(대표) → 이건희(COO) → 4개 팀 가상 헤더
-    CRM·CSM·세일즈팀에는 겸직 리더 가상 노드 추가
-    CRM팀 하위에 CRM1(공석)/CRM2/CRM3 파트, BA팀 하위에 BA파트1/2
+    이선규(대표) → COO → 4개 팀 가상 헤더
+    - ~2026-08-31: COO = 이건희 (CRM·CSM 팀장 겸직)
+    - 2026-09-01~: COO = 오단 (겸직 / 게임베리스튜디오 동일인), CRM·CSM 리더 공석
     """
-    # 4개 팀 헤더 (이건희 COO 하위)
-    crm_v  = _make_virtual('__CRM팀__',   '이건희', 'CRM팀',   '', 'CRM팀',   '마티니')
-    ba_v   = _make_virtual('__BA팀__',    '이건희', 'BA팀',    '', 'BA팀',    '마티니')
-    csm_v  = _make_virtual('__CSM팀__',   '이건희', 'CSM팀',   '', 'CSM팀',   '마티니')
-    sale_v = _make_virtual('__세일즈팀__', '이건희', '세일즈팀', '', '세일즈팀', '마티니')
+    use_odan = ref_date is not None and ref_date >= _MARTINI_COO_CHANGE_SINCE
 
-    # 겸직 리더 가상 노드
-    crm_lead  = _make_virtual('__CRM팀장__',   '__CRM팀__',   '이건희', '팀장 (겸직)', 'CRM팀',   '마티니')
-    csm_lead  = _make_virtual('__CSM팀장__',   '__CSM팀__',   '이건희', '팀장 (겸직)', 'CSM팀',   '마티니')
+    if use_odan:
+        coo_v  = _make_virtual('__마티니COO오단__', '이선규', '오단', 'COO (겸직)', '마티니', '마티니')
+        coo_id = '__마티니COO오단__'
+    else:
+        coo_v  = None
+        coo_id = '이건희'
+
+    # 4개 팀 헤더 (COO 하위)
+    crm_v  = _make_virtual('__CRM팀__',   coo_id, 'CRM팀',   '', 'CRM팀',   '마티니')
+    ba_v   = _make_virtual('__BA팀__',    coo_id, 'BA팀',    '', 'BA팀',    '마티니')
+    csm_v  = _make_virtual('__CSM팀__',   coo_id, 'CSM팀',   '', 'CSM팀',   '마티니')
+    sale_v = _make_virtual('__세일즈팀__', coo_id, '세일즈팀', '', '세일즈팀', '마티니')
+
+    # 리더 가상 노드
+    if use_odan:
+        crm_lead = _make_virtual('__CRM팀장__', '__CRM팀__', 'CRM 리더', '공석', 'CRM팀', '마티니')
+        crm_lead['note'] = '공석'
+        csm_lead = _make_virtual('__CSM팀장__', '__CSM팀__', 'CSM 리더', '공석', 'CSM팀', '마티니')
+        csm_lead['note'] = '공석'
+    else:
+        crm_lead = _make_virtual('__CRM팀장__', '__CRM팀__', '이건희', '팀장 (겸직)', 'CRM팀',  '마티니')
+        csm_lead = _make_virtual('__CSM팀장__', '__CSM팀__', '이건희', '팀장 (겸직)', 'CSM팀',  '마티니')
+
     sale_lead = _make_virtual('__세일즈팀장__', '__세일즈팀__', '이선규', '팀장 (겸직)', '세일즈팀', '마티니')
 
-    # CRM 파트 (CRM팀장 하위) — CRM1은 공석
+    # CRM 파트 (CRM팀장 하위)
     crm1 = _make_virtual('__CRM1__', '__CRM팀장__', 'CRM1', '', 'CRM팀', '마티니')
-    crm2 = _make_virtual('__CRM2__', '__CRM팀장__', 'CRM2', '',     'CRM팀', '마티니')
-    crm3 = _make_virtual('__CRM3__', '__CRM팀장__', 'CRM3', '',     'CRM팀', '마티니')
+    crm2 = _make_virtual('__CRM2__', '__CRM팀장__', 'CRM2', '', 'CRM팀', '마티니')
+    crm3 = _make_virtual('__CRM3__', '__CRM팀장__', 'CRM3', '', 'CRM팀', '마티니')
 
     # BA 파트 (김진한 하위)
     ba1 = _make_virtual('__BA파트1__', '김진한', 'BA파트1', '', 'BA팀', '마티니')
@@ -449,33 +466,27 @@ def _inject_martini_structure(nodes: list[dict], id_map: dict):
         sub  = n.get('sub_dept', '')
         nid  = n['id']
 
-        # 이건희: 이선규 직속 COO 유지 (재라우팅 없음)
-        if nid == '김진한':           # BA팀 헤드 → __BA팀__ 하위
+        if nid == '김진한':
             n['parent'] = '__BA팀__'
-        elif dept == 'CSM팀':         # CSM 팀원 → 이건희 겸직 리더 하위
+        elif dept == 'CSM팀':
             n['parent'] = '__CSM팀장__'
-        elif dept == '세일즈팀':       # 세일즈 팀원 → 이선규 겸직 리더 하위
+        elif dept == '세일즈팀':
             n['parent'] = '__세일즈팀장__'
-        elif dept == 'CRM팀' and n['parent'] == '이건희':
-            # sub_dept 값으로 CRM 파트 배정
-            if sub == 'CRM1':
-                n['parent'] = '__CRM1__'
-            elif sub == 'CRM2':
-                n['parent'] = '__CRM2__'
-            elif sub == 'CRM3':
-                n['parent'] = '__CRM3__'
+        elif dept == 'CRM팀' and (use_odan or n['parent'] == '이건희'):
+            if sub == 'CRM1':       n['parent'] = '__CRM1__'
+            elif sub == 'CRM2':     n['parent'] = '__CRM2__'
+            elif sub == 'CRM3':     n['parent'] = '__CRM3__'
+            elif use_odan:          n['parent'] = '__CRM팀장__'
         elif dept == 'BA팀' and n['parent'] == '김진한':
-            if sub in ('BA1', 'BA파트1'):
-                n['parent'] = '__BA파트1__'
-            elif sub in ('BA2', 'BA파트2'):
-                n['parent'] = '__BA파트2__'
+            if sub in ('BA1', 'BA파트1'):   n['parent'] = '__BA파트1__'
+            elif sub in ('BA2', 'BA파트2'): n['parent'] = '__BA파트2__'
 
-    nodes.extend([
-        crm_v, ba_v, csm_v, sale_v,
-        crm_lead, csm_lead, sale_lead,
-        crm1, crm2, crm3,
-        ba1, ba2,
-    ])
+    extra = [crm_v, ba_v, csm_v, sale_v, crm_lead, csm_lead, sale_lead, crm1, crm2, crm3, ba1, ba2]
+    if coo_v:
+        extra.insert(0, coo_v)
+    nodes.extend(extra)
+    if coo_v:
+        id_map['__마티니COO오단__'] = coo_v
     id_map.update({
         '__CRM팀__': crm_v, '__BA팀__': ba_v, '__CSM팀__': csm_v, '__세일즈팀__': sale_v,
         '__CRM팀장__': crm_lead, '__CSM팀장__': csm_lead, '__세일즈팀장__': sale_lead,
@@ -616,7 +627,13 @@ def build_flat_tree(employees: list[dict], filter_corp: str | None = None,
 
     # 마티니: COO 구조 + 4개 팀 + CRM/BA 파트
     if filter_corp == '마티니':
-        _inject_martini_structure(nodes, id_map)
+        ref_d_martini = None
+        if ref_date_str:
+            try:
+                ref_d_martini = _parse_date_str(ref_date_str)
+            except (ValueError, IndexError):
+                pass
+        _inject_martini_structure(nodes, id_map, ref_date=ref_d_martini)
 
     # 뉴플레이: 팀 헤더 가상 노드
     if filter_corp == '뉴플레이':
