@@ -339,26 +339,30 @@ function makeCard(node, depth, memberCount = 0) {
 
 /* ── Recursive node renderer ──
    Layout rules:
+   - hasMixedChildren (virtual 공동리더 + real 팀원): 리더 가로 → 팀원 세로
    - depth 0  → children: HORIZONTAL
-   - has virtual children → children: HORIZONTAL (팀/파트 level)
+   - has virtual children only → children: HORIZONTAL (팀/파트 level)
    - otherwise → children: VERTICAL (members)
 */
 function renderNode(node, depth) {
   const hasChildren = node.children.length > 0;
-  const hasVirtualChild = hasChildren && node.children.some(c => c.is_virtual);
-  const useHorizontal = depth === 0 || hasVirtualChild || (node.is_virtual && node.children.length === 1);
+  const virtualChildren  = node.children.filter(c => c.is_virtual);
+  const realChildren     = node.children.filter(c => !c.is_virtual);
+  const hasMixedChildren = virtualChildren.length > 0 && realChildren.length > 0;
+  const hasVirtualChild  = virtualChildren.length > 0;
+  // hasMixedChildren은 별도 경로로 처리 → useHorizontal 제외
+  const useHorizontal = !hasMixedChildren && (
+    depth === 0 || hasVirtualChild || (node.is_virtual && node.children.length === 1)
+  );
 
-  /* Outer wrapper: column, aligned to center if horizontal children, flex-start if vertical */
   const wrap = document.createElement('div');
   wrap.style.display = 'flex';
   wrap.style.flexDirection = 'column';
-  wrap.style.alignItems = useHorizontal ? 'center' : 'flex-start';
+  wrap.style.alignItems = (useHorizontal || hasMixedChildren) ? 'center' : 'flex-start';
 
-  /* Card */
   const memberCount = node.is_virtual ? countRealMembers(node) : 0;
   const card = makeCard(node, depth, memberCount);
 
-  /* Collapse toggle (add icon to card if it has children) */
   if (hasChildren) {
     const tog = document.createElement('span');
     tog.className = 'toggle-icon';
@@ -375,20 +379,43 @@ function renderNode(node, depth) {
 
   if (!hasChildren) return wrap;
 
-  /* Children section (vline + hrow, OR vstack) */
   const childrenSection = document.createElement('div');
   childrenSection.style.display = '';
 
-  if (useHorizontal) {
-    /* Vertical line from card down to the horizontal bar */
+  if (hasMixedChildren) {
+    /* 공동 리더(virtual) → 가로 배열, 팀원(real) → 세로 배열 */
+    childrenSection.style.display = 'flex';
+    childrenSection.style.flexDirection = 'column';
+    childrenSection.style.alignItems = 'center';
+
     const vline = document.createElement('div');
     vline.className = 'org-vline';
     childrenSection.appendChild(vline);
 
-    /* Horizontal row */
     const hrow = document.createElement('div');
     hrow.className = 'org-hrow';
+    virtualChildren.forEach(child => {
+      const col = document.createElement('div');
+      col.className = 'org-hcol';
+      col.appendChild(renderNode(child, depth + 1));
+      hrow.appendChild(col);
+    });
+    childrenSection.appendChild(hrow);
 
+    const vstack = document.createElement('div');
+    vstack.className = 'org-vstack';
+    realChildren.forEach(child => {
+      vstack.appendChild(renderNode(child, depth + 1));
+    });
+    childrenSection.appendChild(vstack);
+
+  } else if (useHorizontal) {
+    const vline = document.createElement('div');
+    vline.className = 'org-vline';
+    childrenSection.appendChild(vline);
+
+    const hrow = document.createElement('div');
+    hrow.className = 'org-hrow';
     node.children.forEach(child => {
       const col = document.createElement('div');
       col.className = 'org-hcol';
@@ -402,7 +429,6 @@ function renderNode(node, depth) {
     childrenSection.style.alignItems = 'center';
 
   } else {
-    /* Vertical stack */
     const vstack = document.createElement('div');
     vstack.className = 'org-vstack';
     node.children.forEach(child => {
