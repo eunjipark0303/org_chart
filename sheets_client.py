@@ -111,6 +111,22 @@ def _get_transfer_overrides(service, ref_date) -> dict:
     return {name: {'dept': v[1], 'sub_dept': v[2]} for name, v in candidates.items()}
 
 
+def _get_leave_badges(service) -> dict:
+    """'휴직 등' 시트에서 이름별 특이사항 뱃지(임원/육아휴직/출산휴가 등) 조회"""
+    result = service.spreadsheets().values().get(
+        spreadsheetId=os.getenv('HR_SHEET_ID'),
+        range='휴직 등!A2:B1000'
+    ).execute()
+    rows = result.get('values', [])
+
+    badges = {}
+    for row in rows:
+        if len(row) < 2 or not row[0] or not row[1]:
+            continue
+        badges[row[0].strip()] = row[1].strip()
+    return badges
+
+
 def _parse_date_str(raw: str):
     """날짜 문자열을 date 객체로 변환. '2026. 7. 1', '2026/07/01', '2026-07-01' 모두 처리."""
     s = raw.strip().replace('.', '-').replace('/', '-').replace(' ', '')
@@ -133,6 +149,7 @@ def get_employees(reference_date_str: str, debug: bool = False) -> list[dict]:
 
     ref_date = datetime.strptime(reference_date_str, '%Y-%m-%d').date()
     overrides = _get_transfer_overrides(service, ref_date)
+    leave_badges = _get_leave_badges(service)
 
     employees = []
     skipped = []
@@ -158,8 +175,12 @@ def get_employees(reference_date_str: str, debug: bool = False) -> list[dict]:
         exit_str   = row[9].strip() if len(row) > 9 else ''
         note       = row[11].strip() if len(row) > 11 else ''
 
+        leave_badge = leave_badges.get(name, '')
+        if leave_badge and leave_badge not in note:
+            note = f'{leave_badge}, {note}' if note else leave_badge
+
         if status == '퇴사예정' and '퇴사예정' not in note:
-            note = f'퇴사예정, {note}' if note else '퇴사예정'
+            note = f'{note}, 퇴사예정' if note else '퇴사예정'
 
         if not join_str:
             if debug:
