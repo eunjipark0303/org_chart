@@ -29,6 +29,7 @@ TEAM_COLORS = {
     'UA팀':            '#065f46',
     '마케팅파트':      '#059669',
     '크리에이티브파트': '#0d9488',
+    'AI콘텐츠팀':      '#0e7490',
     '게임운영팀':      '#0369a1',
     '디자인팀':        '#be185d',
     '재무팀':          '#b45309',
@@ -56,6 +57,7 @@ AIMED_DEPT_ORDER = [
     '이클립스', '이클립스팀', '이클립스_개발', '이클립스_ART',
     '퍼즐팀',
     'AI개발팀',
+    'AI콘텐츠팀',
     '게임운영팀',
     'UA팀', '마케팅파트', '크리에이티브파트',
     '디자인팀',
@@ -63,8 +65,9 @@ AIMED_DEPT_ORDER = [
     '피플팀',
 ]
 _AIMED_ORDER_MAP = {d: i for i, d in enumerate(AIMED_DEPT_ORDER)}
-_ECLIPSE_PARTS_SINCE     = datetime.strptime('2026-08-05', '%Y-%m-%d').date()
+_ECLIPSE_PARTS_SINCE      = datetime.strptime('2026-08-05', '%Y-%m-%d').date()
 _MARTINI_COO_CHANGE_SINCE = datetime.strptime('2026-09-01', '%Y-%m-%d').date()
+_AI_CONTENT_TEAM_SINCE    = datetime.strptime('2026-11-01', '%Y-%m-%d').date()
 
 
 def _get_service():
@@ -122,7 +125,7 @@ def get_employees(reference_date_str: str, debug: bool = False) -> list[dict]:
     service = _get_service()
     result = service.spreadsheets().values().get(
         spreadsheetId=os.getenv('HR_SHEET_ID'),
-        range='인사데이터(평가, 조직도용)!A1:K2000'
+        range='인사데이터(평가, 조직도용)!A1:L2000'
     ).execute()
     rows = result.get('values', [])
     if not rows:
@@ -134,23 +137,29 @@ def get_employees(reference_date_str: str, debug: bool = False) -> list[dict]:
     employees = []
     skipped = []
     for i, row in enumerate(rows[1:], start=2):
-        name = row[0].strip() if row else ''
+        # A열(상태)이 추가되며 전체 컬럼이 한 칸씩 밀림: 상태, 이름, 법인, 부서, 파트, 부서장,
+        # 상위직책자, 직무/직군, 법인입사일, 행정퇴사일, 회사이메일, 특이사항
+        status = row[0].strip() if row else ''
+        name   = row[1].strip() if len(row) > 1 else ''
         if not name:
             continue
 
-        if len(row) < 8:
+        if len(row) < 9:
             if debug:
                 skipped.append({'row': i, 'name': name, 'reason': f'행 길이 부족 ({len(row)}열)'})
             continue
 
-        corp_raw   = row[1].strip() if len(row) > 1 else ''
-        dept       = row[2].strip() if len(row) > 2 else ''
-        sub_dept   = row[3].strip() if len(row) > 3 else ''
-        supervisor = row[5].strip() if len(row) > 5 else ''
-        role       = row[6].strip() if len(row) > 6 else ''
-        join_str   = row[7].strip() if len(row) > 7 else ''
-        exit_str   = row[8].strip() if len(row) > 8 else ''
-        note       = row[10].strip() if len(row) > 10 else ''
+        corp_raw   = row[2].strip() if len(row) > 2 else ''
+        dept       = row[3].strip() if len(row) > 3 else ''
+        sub_dept   = row[4].strip() if len(row) > 4 else ''
+        supervisor = row[6].strip() if len(row) > 6 else ''
+        role       = row[7].strip() if len(row) > 7 else ''
+        join_str   = row[8].strip() if len(row) > 8 else ''
+        exit_str   = row[9].strip() if len(row) > 9 else ''
+        note       = row[11].strip() if len(row) > 11 else ''
+
+        if status == '퇴사예정' and '퇴사예정' not in note:
+            note = f'퇴사예정, {note}' if note else '퇴사예정'
 
         if not join_str:
             if debug:
@@ -276,6 +285,16 @@ def _inject_ai_vacancy(nodes: list[dict], id_map: dict):
             n['parent'] = '__AI개발팀__'
     nodes.append(ai_v)
     id_map['__AI개발팀__'] = ai_v
+
+
+def _inject_ai_content_vacancy(nodes: list[dict], id_map: dict):
+    """AI콘텐츠팀 신설, 팀장 공석 가상 노드 (2026-11-01~)"""
+    aic_v = _make_virtual('__AI콘텐츠팀__', '임형철', 'AI콘텐츠팀', '팀장 공석', 'AI콘텐츠팀', '에임드')
+    for n in nodes:
+        if n['dept'] == 'AI콘텐츠팀':
+            n['parent'] = '__AI콘텐츠팀__'
+    nodes.append(aic_v)
+    id_map['__AI콘텐츠팀__'] = aic_v
 
 
 def _inject_game_ops_vacancy(nodes: list[dict], id_map: dict):
@@ -636,6 +655,8 @@ def build_flat_tree(employees: list[dict], filter_corp: str | None = None,
                 if ref_d >= _ECLIPSE_PARTS_SINCE:
                     _inject_eclipse_parts(nodes, id_map)
                     eclipse_leaders = {'강건우': 0, '안경빈': 0}
+                if ref_d >= _AI_CONTENT_TEAM_SINCE:
+                    _inject_ai_content_vacancy(nodes, id_map)
             except ValueError:
                 pass
 
